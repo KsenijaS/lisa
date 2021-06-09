@@ -7,7 +7,7 @@ from argparse import Namespace
 from typing import Iterable, Optional, cast
 
 from lisa import notifier
-from lisa.parameter_parser.runbook import load_runbook
+from lisa.parameter_parser.runbook import RunbookBuilder
 from lisa.runner import RootRunner
 from lisa.testselector import select_testcases
 from lisa.testsuite import TestCaseRuntimeData
@@ -20,8 +20,11 @@ _get_init_logger = functools.partial(get_logger, "init")
 
 def run(args: Namespace) -> int:
     enable_console_timestamp()
-    runbook = load_runbook(args.runbook, args.variables)
+    builder = RunbookBuilder.build_from_path(args.runbook, args.variables)
+    builder.set_constants()
+    builder.import_extensions()
 
+    runbook = builder.runbook
     if runbook.notifier:
         notifier.initialize(runbooks=runbook.notifier)
     run_message = notifier.TestRunMessage(
@@ -54,12 +57,14 @@ def run(args: Namespace) -> int:
 
 # check runbook
 def check(args: Namespace) -> int:
-    load_runbook(args.runbook, args.variables)
+    builder = RunbookBuilder.build_from_path(args.runbook, args.variables)
+    builder.runbook
     return 0
 
 
 def list_start(args: Namespace) -> int:
-    runbook = load_runbook(args.runbook, args.variables)
+    builder = RunbookBuilder.build_from_path(args.runbook, args.variables)
+    runbook = builder.runbook
     list_all = cast(Optional[bool], args.list_all)
     log = _get_init_logger("list")
     if args.type == constants.LIST_CASE:
