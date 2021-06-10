@@ -178,12 +178,14 @@ class TypedSchema:
     type: str = ""
 
 
-@dataclass_json()
+@dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
 class Combinator(TypedSchema):
     type: str = field(
         default=constants.COMBINATOR_GRID, metadata=metadata(required=True)
     )
+
+    delay_parsed: CatchAll = field(default_factory=dict)  # type: ignore
 
 
 @dataclass_json()
@@ -833,6 +835,7 @@ class Runbook:
     parent: Optional[List[Parent]] = field(default=None)
     extension: Optional[List[Union[str, Extension]]] = field(default=None)
     variable: Optional[List[Variable]] = field(default=None)
+    combinator: Optional[Combinator] = field(default=None)
     artifact: Optional[List[Artifact]] = field(default=None)
     environment: Optional[EnvironmentRoot] = field(default=None)
     notifier: Optional[List[Notifier]] = field(default=None)

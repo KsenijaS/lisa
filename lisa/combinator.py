@@ -39,7 +39,7 @@ class Combinator(subclasses.BaseClassWithRunbookMixin, InitializableMixin):
     def _next(self) -> Optional[Dict[str, VariableEntry]]:
         raise NotImplementedError()
 
-    def validate_entry(self, entry: schema.Variable) -> None:
+    def _validate_entry(self, entry: schema.Variable) -> None:
         if entry.file:
             raise LisaException(
                 f"The value of combinator doesn't support file, "

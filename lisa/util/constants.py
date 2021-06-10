@@ -57,6 +57,7 @@ PARENT = "parent"
 EXTENSION = "extension"
 VARIABLE = "variable"
 
+COMBINATOR = "combinator"
 COMBINATOR_GRID = "grid"
 
 ENVIRONMENT = "environment"

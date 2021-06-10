@@ -10,7 +10,7 @@ from enum import Enum
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
-
+from threading import Lock
 from dataclasses_json import dataclass_json
 from marshmallow import validate
 
@@ -53,6 +53,25 @@ EnvironmentStatus = Enum(
         "Deleted",
     ],
 )
+
+_global_environment_id = -1
+_global_environment_id_lock: Lock = Lock()
+
+
+def _get_environment_id() -> int:
+    """
+    Return an unique id cross threads, runners.
+    """
+    global _global_environment_id
+    global _global_environment_id_lock
+    _global_environment_id_lock.acquire()
+    try:
+        id = _global_environment_id
+        _global_environment_id += 1
+    finally:
+        _global_environment_id_lock.release()
+
+    return id
 
 
 @dataclass_json()
@@ -128,7 +147,7 @@ class EnvironmentSpace(search_space.RequirementMixin):
 
 
 class Environment(ContextMixin, InitializableMixin):
-    def __init__(self, is_predefined: bool, warn_as_error: bool) -> None:
+    def __init__(self, is_predefined: bool, warn_as_error: bool, id: ) -> None:
         super().__init__()
 
         self.nodes: Nodes = Nodes()
@@ -137,6 +156,7 @@ class Environment(ContextMixin, InitializableMixin):
         self.status: EnvironmentStatus = EnvironmentStatus.New
         self.is_predefined: bool = is_predefined
         self.is_new: bool = True
+        self.id = _get_environment_id()
         self.platform: Optional[Platform] = None
         # cost uses to plan order of environments.
         # cheaper env can fit cases earlier to run more cases on it.

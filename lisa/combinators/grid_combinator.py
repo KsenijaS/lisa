@@ -34,7 +34,7 @@ class GridCombinator(Combinator):
             self._indexes[0] = -1
         # validate each item must be a list
         for index, item in enumerate(grid_items):
-            self.validate_entry(item)
+            self._validate_entry(item)
             assert isinstance(item.value, list)
             self._sizes[index] = len(item.value)
 

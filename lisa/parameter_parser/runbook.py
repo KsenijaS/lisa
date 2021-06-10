@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
+import copy
 from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union, cast
@@ -37,7 +38,6 @@ class RunbookBuilder:
         self._path = path
         self._cmd_args = cmd_args
 
-        self._parsed_data: Any = None
         self._raw_data: Any = None
         self._variables: Dict[str, VariableEntry] = dict()
         self._runbook: schema.Runbook
@@ -49,10 +49,6 @@ class RunbookBuilder:
     @property
     def raw_data(self) -> Any:
         return self._raw_data
-
-    @property
-    def parsed_data(self) -> Any:
-        return self._parsed_data
 
     @property
     def runbook(self) -> schema.Runbook:
@@ -78,26 +74,22 @@ class RunbookBuilder:
         data = builder._load_data(
             builder._path.absolute(), set(), higher_level_variables=builder._cmd_args
         )
+        builder._raw_data = data
 
         # load final variables
         variables = load_variables(
             runbook_data=data, higher_level_variables=builder._cmd_args
         )
+        builder._variables = variables
 
         # remove variables and extensions from data, since it's not used, and may be
         #  confusing in log.
         if constants.VARIABLE in data:
             del data[constants.VARIABLE]
 
-        try:
-            parsed_data = replace_variables(data, variables)
-        except Exception as identifier:
-            # log current runbook for troubleshooting.
-            builder._log.info(f"parsed runbook data: {data}")
-            raise identifier
-
-        # validate runbook, after extensions loaded
-        runbook = builder._validate_and_load(parsed_data)
+        # resolve the default root runbook
+        runbook = builder.resolve(variables)
+        builder._runbook = runbook
 
         # log message for unused variables, it's helpful to see which variable
         # is not used.
@@ -109,17 +101,26 @@ class RunbookBuilder:
         for key, value in variables.items():
             builder._log.debug(f"variable '{key}': {value.data}")
 
-        builder._variables = variables
-        builder._raw_data = data
-        builder._parsed_data = parsed_data
-        builder._runbook = runbook
-
         return builder
+
+    def resolve(self, variables: Dict[str, VariableEntry]) -> schema.Runbook:
+        raw_data = copy.copy(self.raw_data)
+        try:
+            parsed_data = replace_variables(raw_data, variables)
+        except Exception as identifier:
+            # log current runbook for troubleshooting.
+            self._log.debug(f"parsed runbook data: {raw_data}")
+            raise identifier
+
+        # validate runbook, after extensions loaded
+        runbook = self._validate_and_load(parsed_data)
+
+        return runbook
 
     def set_constants(self) -> None:
         constants.RUNBOOK_PATH = self._path.parent
         constants.RUNBOOK_FILE = self._path
-        constants.RUNBOOK = self._parsed_data
+        constants.RUNBOOK = replace_variables(self.raw_data, self._variables)
         constants.RUN_NAME = f"lisa_{self._runbook.name}_{constants.RUN_ID}"
         self._log.info(f"run name is '{constants.RUN_NAME}'")
 
@@ -147,7 +148,7 @@ class RunbookBuilder:
         runbook = cast(schema.Runbook, _schema.load(data))
 
         log = _get_init_logger()
-        log.debug(f"merged runbook: {runbook.to_dict()}")  # type: ignore
+        log.debug(f"parsed runbook: {runbook.to_dict()}")  # type: ignore
 
         return runbook
 
