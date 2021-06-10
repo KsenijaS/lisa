@@ -180,6 +180,14 @@ class TypedSchema:
 
 @dataclass_json()
 @dataclass
+class Combinator(TypedSchema):
+    type: str = field(
+        default=constants.COMBINATOR_GRID, metadata=metadata(required=True)
+    )
+
+
+@dataclass_json()
+@dataclass
 class Strategy:
     """
     node_path is the path of yaml node. For example:
@@ -273,7 +281,7 @@ class Variable:
     )
 
     name: str = field(default="")
-    value_raw: Union[str, bool, int, Dict[Any, Any]] = field(
+    value_raw: Union[str, bool, int, Dict[Any, Any], List[Any]] = field(
         default="", metadata=metadata(data_key="value")
     )
 
@@ -287,7 +295,9 @@ class Variable:
             )
 
         if isinstance(self.value_raw, dict):
-            self.value: Union[str, bool, int, VariableEntry] = cast(
+            self.value: Union[
+                str, bool, int, VariableEntry, List[Union[str, bool, int]]
+            ] = cast(
                 VariableEntry,
                 VariableEntry.schema().load(self.value_raw),  # type:ignore
             )
